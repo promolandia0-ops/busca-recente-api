@@ -69,10 +69,13 @@ def rssdate(s):
     mo = PTM.get(m.group(2).lower()) or ENM.get(m.group(2).lower())
     if not mo: return None
     return datetime(int(m.group(3)), mo, int(m.group(1)), int(m.group(4)), int(m.group(5)), int(m.group(6) or 0), tzinfo=timezone.utc).isoformat()
+BINGCK = "SRCHHPGUSR=ADLT=OFF&SRCHLANG=pt; ADLT=OFF"
 def get(url, t=8, ua=None):
     k = "G:" + url; c = CACHE.get(k)
     if c and time.time() - c[0] < 300: return c[1]
-    with urlopen(Request(url, headers={"User-Agent": ua or UA, "Accept-Language": "pt-BR,pt;q=0.9"}), timeout=t) as r: b = r.read().decode("utf-8", "replace")
+    hd = {"User-Agent": ua or UA, "Accept-Language": "pt-BR,pt;q=0.9"}
+    if "bing.com" in url: hd["Cookie"] = BINGCK
+    with urlopen(Request(url, headers=hd), timeout=t) as r: b = r.read().decode("utf-8", "replace")
     CACHE[k] = (time.time(), b); return b
 def rss_items(xml):
     out = []
@@ -89,13 +92,13 @@ def bing_web(q, rng, lo, hi, page):
     now = datetime.now(timezone.utc)
     if rng == "year": f = 'ex1:"ez5_%d_%d"' % (days(now - timedelta(days=365)), days(now))
     if rng == "custom": f = 'ex1:"ez5_%d_%d"' % (days(lo or now - timedelta(days=3650)), days((hi or now + timedelta(days=1)) - timedelta(days=1)))
-    p = {"format": "rss", "q": q, "setlang": "pt-BR", "cc": "BR", "first": (page-1)*10+1}
+    p = {"format": "rss", "q": q, "setlang": "pt-BR", "cc": "BR", "first": (page-1)*10+1, "adlt": "off"}
     if f: p["filters"] = f
     rs = rss_items(get("https://www.bing.com/search?" + urlencode(p)))
     for r in rs: r["engine"] = "bing"
     return rs
 def bing_news(q, rng, page):
-    p = {"q": q, "format": "rss", "setlang": "pt-BR", "cc": "BR", "first": (page-1)*10+1}
+    p = {"q": q, "format": "rss", "setlang": "pt-BR", "cc": "BR", "first": (page-1)*10+1, "adlt": "off"}
     iv = {"hour":"4","day":"7","week":"8","month":"9"}.get(rng)
     if iv: p["qft"] = 'interval="%s"' % iv
     rs = rss_items(get("https://www.bing.com/news/search?" + urlencode(p)))
@@ -116,7 +119,7 @@ def bing_images(q, rng, lo, page):
     now = datetime.now(timezone.utc)
     mins = {"hour":60,"day":1440,"week":10080,"month":43200,"year":525600}.get(rng)
     if rng == "custom" and lo: mins = max(60, int((now - lo).total_seconds() // 60))
-    p = {"q": q, "first": (page-1)*35, "count": 35, "setlang": "pt-BR", "cc": "BR", "safeSearch": "Off"}
+    p = {"q": q, "first": (page-1)*35, "count": 35, "setlang": "pt-BR", "cc": "BR", "safeSearch": "Off", "adlt": "off"}
     if mins: p["qft"] = "+filterui:age-lt%d" % mins
     UAS = [UA, "Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36",
            "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15"]
@@ -129,7 +132,7 @@ def bing_images(q, rng, lo, page):
             c = CACHE.get("G:" + url)
             if c: h = c[1]
             else:
-                with urlopen(Request(url, headers={"User-Agent": ua, "Accept-Language": "pt-BR,pt;q=0.9"}), timeout=6) as r: h = r.read().decode("utf-8", "replace")
+                with urlopen(Request(url, headers={"User-Agent": ua, "Accept-Language": "pt-BR,pt;q=0.9", "Cookie": BINGCK}), timeout=6) as r: h = r.read().decode("utf-8", "replace")
         except Exception as e: print("bing img err", e, flush=True); continue
         if 'murl' in h:
             CACHE["G:" + url] = (time.time(), h); break
