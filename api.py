@@ -69,10 +69,10 @@ def rssdate(s):
     mo = PTM.get(m.group(2).lower()) or ENM.get(m.group(2).lower())
     if not mo: return None
     return datetime(int(m.group(3)), mo, int(m.group(1)), int(m.group(4)), int(m.group(5)), int(m.group(6) or 0), tzinfo=timezone.utc).isoformat()
-def get(url, t=8):
+def get(url, t=8, ua=None):
     k = "G:" + url; c = CACHE.get(k)
     if c and time.time() - c[0] < 300: return c[1]
-    with urlopen(Request(url, headers={"User-Agent": UA, "Accept-Language": "pt-BR,pt;q=0.9"}), timeout=t) as r: b = r.read().decode("utf-8", "replace")
+    with urlopen(Request(url, headers={"User-Agent": ua or UA, "Accept-Language": "pt-BR,pt;q=0.9"}), timeout=t) as r: b = r.read().decode("utf-8", "replace")
     CACHE[k] = (time.time(), b); return b
 def rss_items(xml):
     out = []
@@ -145,7 +145,7 @@ def bing_images(q, rng, lo, page):
 def openverse(q, page):
     p = {"action":"query","format":"json","generator":"search","gsrsearch":"filetype:bitmap " + q,"gsrnamespace":6,"gsrlimit":30,
          "gsroffset":(page-1)*30,"prop":"imageinfo","iiprop":"url|timestamp","iiurlwidth":400}
-    d = json.loads(get("https://commons.wikimedia.org/w/api.php?" + urlencode(p)))
+    d = json.loads(get("https://commons.wikimedia.org/w/api.php?" + urlencode(p), ua="BuscaRecente/1.0 (https://github.com/promolandia0-ops/busca-recente-api; promolandia0@gmail.com)"))
     out = []
     for pg in (d.get("query") or {}).get("pages", {}).values():
         ii = (pg.get("imageinfo") or [{}])[0]
