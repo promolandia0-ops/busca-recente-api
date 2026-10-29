@@ -213,6 +213,11 @@ class H(BaseHTTPRequestHandler):
             try: urlopen("http://127.0.0.1:%s/healthz" % os.environ.get("SEARXNG_PORT","8080"), timeout=5)
             except Exception: ok = False
             return self.send(200, {"ok": True, "searxng": ok, "time": datetime.now(timezone.utc).isoformat()})
+        if p.path == "/dbg":
+            u = a.get("u", "")
+            if not u.startswith("https://www.bing.com/"): return self.send(400, {})
+            with urlopen(Request(u, headers={"User-Agent": a.get("ua") or UA, "Accept-Language": "pt-BR,pt;q=0.9"}), timeout=8) as r: h = r.read().decode("utf-8", "replace")
+            b = h.encode(); self.send_response(200); self.send_header("Content-Type", "text/plain; charset=utf-8"); self.end_headers(); self.wfile.write(b); return
         if p.path == "/config":
             c = json.load(urlopen("http://127.0.0.1:%s/config" % os.environ.get("SEARXNG_PORT","8080"), timeout=10))
             return self.send(200, [[e["name"], e["enabled"], e["categories"]] for e in c.get("engines", [])])
