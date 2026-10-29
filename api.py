@@ -118,12 +118,22 @@ def bing_images(q, rng, lo, page):
     if rng == "custom" and lo: mins = max(60, int((now - lo).total_seconds() // 60))
     p = {"q": q, "first": (page-1)*35, "count": 35, "setlang": "pt-BR", "cc": "BR", "safeSearch": "Off"}
     if mins: p["qft"] = "+filterui:age-lt%d" % mins
-    h = get("https://www.bing.com/images/async?" + urlencode(p))
-    if 'm="' not in h:
-        print("bing images empty", len(h), h[:200].replace("\n"," "), flush=True)
-        CACHE.pop("G:https://www.bing.com/images/async?" + urlencode(p), None)
-        p2 = dict(p); p2.pop("cc", None); p2["mkt"] = "pt-BR"
-        h = get("https://www.bing.com/images/search?" + urlencode(p2) + "&form=HDRSC2")
+    UAS = [UA, "Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36",
+           "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15"]
+    tries = [("async", p, UAS[0]), ("search", dict(p, mkt="pt-BR", form="HDRSC2"), UAS[1]),
+             ("async", {k: v for k, v in p.items() if k not in ("cc", "setlang")}, UAS[2]), ("search", {k: v for k, v in p.items() if k != "cc"}, UAS[2])]
+    h = ""
+    for path, pp, ua in tries:
+        url = "https://www.bing.com/images/%s?%s" % (path, urlencode(pp))
+        try:
+            c = CACHE.get("G:" + url)
+            if c: h = c[1]
+            else:
+                with urlopen(Request(url, headers={"User-Agent": ua, "Accept-Language": "pt-BR,pt;q=0.9"}), timeout=6) as r: h = r.read().decode("utf-8", "replace")
+        except Exception as e: print("bing img err", e, flush=True); continue
+        if 'murl' in h:
+            CACHE["G:" + url] = (time.time(), h); break
+        print("bing images empty", path, len(h), flush=True)
     out = []
     for m in re.finditer(r'\bm="([^"]+)"', h):
         try: j = json.loads(HT.unescape(m.group(1)))
