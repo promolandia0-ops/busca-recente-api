@@ -1,0 +1,18 @@
+use_default_settings:
+  engines:
+    keep_only: [google, bing, duckduckgo, brave, startpage, mojeek, wikipedia, google images, bing images, duckduckgo images, brave.images, qwant images, google videos, bing videos, youtube, duckduckgo videos, brave.videos, google news, bing news, duckduckgo news, brave.news, yahoo news]
+general:
+  instance_name: busca
+server:
+  secret_key: "busca-recente-7f3a9c2e8b1d4f60a5e2c9d8b7f6e5a4"
+  limiter: false
+  image_proxy: false
+  public_instance: false
+search:
+  safe_search: 0
+  default_lang: pt-BR
+  formats: [html, json]
+outgoing:
+  request_timeout: 4.0
+  max_request_timeout: 8.0
+  pool_maxsize: 20
