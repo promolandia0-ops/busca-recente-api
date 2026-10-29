@@ -119,6 +119,11 @@ def bing_images(q, rng, lo, page):
     p = {"q": q, "first": (page-1)*35, "count": 35, "setlang": "pt-BR", "cc": "BR", "safeSearch": "Off"}
     if mins: p["qft"] = "+filterui:age-lt%d" % mins
     h = get("https://www.bing.com/images/async?" + urlencode(p))
+    if 'm="' not in h:
+        print("bing images empty", len(h), h[:200].replace("\n"," "), flush=True)
+        CACHE.pop("G:https://www.bing.com/images/async?" + urlencode(p), None)
+        p2 = dict(p); p2.pop("cc", None); p2["mkt"] = "pt-BR"
+        h = get("https://www.bing.com/images/search?" + urlencode(p2) + "&form=HDRSC2")
     out = []
     for m in re.finditer(r'\bm="([^"]+)"', h):
         try: j = json.loads(HT.unescape(m.group(1)))
@@ -146,7 +151,8 @@ def search(a):
     lang = a.get("lang") or "pt-BR"
     now = datetime.now(timezone.utc); lo = hi = None; tr = None; qq = q
     if rng == "hour": tr = "day"; lo = now - timedelta(hours=1)
-    elif rng in ("day","week","month","year"): tr = rng
+    elif rng in ("day","week","month","year"):
+        tr = rng; lo = now - {"day":timedelta(days=1, hours=2),"week":timedelta(days=7, hours=6),"month":timedelta(days=31),"year":timedelta(days=366)}[rng]
     elif rng == "custom":
         f, t = a.get("from"), a.get("to")
         if f: lo = datetime.fromisoformat(f).replace(tzinfo=timezone.utc); qq += " after:" + f
