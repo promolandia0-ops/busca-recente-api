@@ -43,9 +43,10 @@ def pdate(s):
         return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
     except Exception: return None
 
-def sx(q, cat, tr, page, lang):
+def sx(q, cat, tr, page, lang, eng=None):
     p = {"q": q, "format": "json", "categories": cat, "pageno": page, "language": lang, "safesearch": 0}
     if tr: p["time_range"] = tr
+    if eng: p["engines"] = eng
     key = urlencode(p)
     c = CACHE.get(key)
     if c and time.time() - c[0] < 300: return c[1]
@@ -70,7 +71,7 @@ def search(a):
             qq += " before:" + (hi.date().isoformat())
         span = now - (lo or now - timedelta(days=3650))
         tr = "day" if span <= timedelta(days=1) and not hi else "week" if span <= timedelta(days=7) and not hi else "month" if span <= timedelta(days=31) and not hi else "year" if span <= timedelta(days=366) and not hi else None
-    d = sx(qq, cat, tr, page, lang)
+    d = sx(qq, cat, tr, page, lang, a.get("engines"))
     if not d.get("results") and qq != q:
         d = sx(q, cat, tr, page, lang)  # fallback without operators
     out, seen, ads = [], set(), 0
@@ -105,6 +106,9 @@ class H(BaseHTTPRequestHandler):
             try: urlopen("http://127.0.0.1:%s/healthz" % os.environ.get("SEARXNG_PORT","8080"), timeout=5)
             except Exception: ok = False
             return self.send(200, {"ok": True, "searxng": ok, "time": datetime.now(timezone.utc).isoformat()})
+        if p.path == "/config":
+            c = json.load(urlopen("http://127.0.0.1:%s/config" % os.environ.get("SEARXNG_PORT","8080"), timeout=10))
+            return self.send(200, [[e["name"], e["enabled"], e["categories"]] for e in c.get("engines", [])])
         if p.path == "/api/search":
             if not a.get("q"): return self.send(400, {"error": "q obrigatório"})
             t = time.time()
