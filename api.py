@@ -90,7 +90,7 @@ def search(a):
     if a.get("sort") == "date":
         out.sort(key=lambda x: x["date"] or "", reverse=True)
     return {"q": q, "tab": tab, "range": rng, "page": page, "count": len(out), "ads_removed": ads,
-            "results": out, "unresponsive": [e[0] for e in d.get("unresponsive_engines", [])]}
+            "results": out, "unresponsive": d.get("unresponsive_engines", []), "engines_used": sorted({e for r in d.get("results",[]) for e in (r.get("engines") or [])})}
 
 class H(BaseHTTPRequestHandler):
     def send(self, code, obj):

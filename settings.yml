@@ -1,6 +1,6 @@
 use_default_settings:
   engines:
-    keep_only: [google, bing, duckduckgo, brave, startpage, mojeek, wikipedia, google images, bing images, duckduckgo images, brave.images, google videos, bing videos, youtube, duckduckgo videos, brave.videos, google news, bing news, duckduckgo news, brave.news, yahoo news]
+    keep_only: [google, bing, duckduckgo, brave, startpage, mojeek, qwant, yahoo, presearch, wikipedia, google images, bing images, duckduckgo images, brave.images, qwant images, startpage images, google videos, bing videos, youtube, duckduckgo videos, brave.videos, qwant videos, dailymotion, vimeo, google news, bing news, duckduckgo news, brave.news, yahoo news, qwant news, startpage news, wikinews]
 general:
   instance_name: busca
 server:
@@ -12,7 +12,14 @@ search:
   safe_search: 0
   default_lang: pt-BR
   formats: [html, json]
+  suspended_times:
+    SearxEngineAccessDenied: 60
+    SearxEngineCaptcha: 120
+    SearxEngineTooManyRequests: 30
+    cf_SearxEngineCaptcha: 120
+    cf_SearxEngineAccessDenied: 60
+    recaptcha_SearxEngineCaptcha: 120
 outgoing:
-  request_timeout: 4.0
-  max_request_timeout: 8.0
+  request_timeout: 5.0
+  max_request_timeout: 10.0
   pool_maxsize: 20
