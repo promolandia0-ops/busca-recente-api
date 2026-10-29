@@ -1,6 +1,6 @@
 use_default_settings:
   engines:
-    keep_only: [google, bing, duckduckgo, brave, startpage, mojeek, wikipedia, google images, bing images, duckduckgo images, brave.images, qwant images, google videos, bing videos, youtube, duckduckgo videos, brave.videos, google news, bing news, duckduckgo news, brave.news, yahoo news]
+    keep_only: [google, bing, duckduckgo, brave, startpage, mojeek, wikipedia, google images, bing images, duckduckgo images, brave.images, google videos, bing videos, youtube, duckduckgo videos, brave.videos, google news, bing news, duckduckgo news, brave.news, yahoo news]
 general:
   instance_name: busca
 server:
