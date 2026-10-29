@@ -142,9 +142,19 @@ def bing_images(q, rng, lo, page):
         out.append({"title": j.get("t") or "", "url": j.get("purl") or j.get("murl"), "img_src": j["murl"],
                     "thumbnail_src": j.get("turl"), "engine": "bing images", "content": j.get("desc") or ""})
     return out
+def openverse(q, page):
+    p = {"action":"query","format":"json","generator":"search","gsrsearch":"filetype:bitmap " + q,"gsrnamespace":6,"gsrlimit":30,
+         "gsroffset":(page-1)*30,"prop":"imageinfo","iiprop":"url|timestamp","iiurlwidth":400}
+    d = json.loads(get("https://commons.wikimedia.org/w/api.php?" + urlencode(p)))
+    out = []
+    for pg in (d.get("query") or {}).get("pages", {}).values():
+        ii = (pg.get("imageinfo") or [{}])[0]
+        if ii.get("url"): out.append({"title": pg.get("title","").replace("File:",""), "url": ii.get("descriptionurl") or ii["url"],
+            "img_src": ii["url"], "thumbnail_src": ii.get("thumburl"), "engine": "wikimedia", "content": ""})
+    return out
 POOL = ThreadPoolExecutor(16)
 def extra(tab, q, rng, lo, hi, page):
-    if tab == "images": fs = [lambda: bing_images(q, rng, lo, page)]
+    if tab == "images": fs = [lambda: bing_images(q, rng, lo, page) or openverse(q, page)]
     elif tab == "news": fs = [lambda: gnews(q, rng, lo, hi, page), lambda: bing_news(q, rng, page)]
     elif tab == "all": fs = [lambda: bing_web(q, rng, lo, hi, page)] + ([lambda: gnews(q, rng, lo, hi, page)] if rng in ("hour","day") else [])
     else: fs = []
@@ -213,11 +223,6 @@ class H(BaseHTTPRequestHandler):
             try: urlopen("http://127.0.0.1:%s/healthz" % os.environ.get("SEARXNG_PORT","8080"), timeout=5)
             except Exception: ok = False
             return self.send(200, {"ok": True, "searxng": ok, "time": datetime.now(timezone.utc).isoformat()})
-        if p.path == "/dbg":
-            u = a.get("u", "")
-            if not u.startswith("https://www.bing.com/"): return self.send(400, {})
-            with urlopen(Request(u, headers={"User-Agent": a.get("ua") or UA, "Accept-Language": "pt-BR,pt;q=0.9"}), timeout=8) as r: h = r.read().decode("utf-8", "replace")
-            b = h.encode(); self.send_response(200); self.send_header("Content-Type", "text/plain; charset=utf-8"); self.end_headers(); self.wfile.write(b); return
         if p.path == "/config":
             c = json.load(urlopen("http://127.0.0.1:%s/config" % os.environ.get("SEARXNG_PORT","8080"), timeout=10))
             return self.send(200, [[e["name"], e["enabled"], e["categories"]] for e in c.get("engines", [])])
