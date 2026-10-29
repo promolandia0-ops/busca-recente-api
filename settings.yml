@@ -23,3 +23,66 @@ outgoing:
   request_timeout: 5.0
   max_request_timeout: 10.0
   pool_maxsize: 20
+engines:
+  - name: google
+    disabled: false
+  - name: bing
+    disabled: false
+  - name: duckduckgo
+    disabled: false
+  - name: brave
+    disabled: false
+  - name: startpage
+    disabled: false
+  - name: mojeek
+    disabled: false
+  - name: qwant
+    disabled: false
+  - name: yahoo
+    disabled: false
+  - name: presearch
+    disabled: false
+  - name: google images
+    disabled: false
+  - name: bing images
+    disabled: false
+  - name: duckduckgo images
+    disabled: false
+  - name: brave.images
+    disabled: false
+  - name: qwant images
+    disabled: false
+  - name: startpage images
+    disabled: false
+  - name: google videos
+    disabled: false
+  - name: bing videos
+    disabled: false
+  - name: youtube
+    disabled: false
+  - name: duckduckgo videos
+    disabled: false
+  - name: brave.videos
+    disabled: false
+  - name: qwant videos
+    disabled: false
+  - name: dailymotion
+    disabled: false
+  - name: vimeo
+    disabled: false
+  - name: google news
+    disabled: false
+  - name: bing news
+    disabled: false
+  - name: duckduckgo news
+    disabled: false
+  - name: brave.news
+    disabled: false
+  - name: yahoo news
+    disabled: false
+  - name: qwant news
+    disabled: false
+  - name: startpage news
+    disabled: false
+  - name: wikinews
+    disabled: false
