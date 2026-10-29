@@ -21,6 +21,8 @@ def unwrap(u):
             u = (qs.get("q") or qs.get("url") or [u])[0]; continue
         if "duckduckgo.com" in h and p.path.startswith("/l/") and "uddg" in qs:
             u = qs["uddg"][0]; continue
+        if "bing.com" in h and "apiclick" in p.path and "url" in qs:
+            u = qs["url"][0]; continue
         if "bing.com" in h and p.path.startswith("/ck/") and "u" in qs:
             v = qs["u"][0]
             if v.startswith("a1"):
@@ -55,6 +57,88 @@ def sx(q, cat, tr, page, lang, eng=None):
     if len(CACHE) > 300: CACHE.clear()
     CACHE[key] = (time.time(), d); return d
 
+
+import html as HT, xml.etree.ElementTree as ET
+UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
+PTM = {"jan":1,"fev":2,"mar":3,"abr":4,"mai":5,"jun":6,"jul":7,"ago":8,"set":9,"out":10,"nov":11,"dez":12}
+ENM = {m:i+1 for i,m in enumerate("jan feb mar apr may jun jul aug sep oct nov dec".split())}
+def rssdate(s):
+    if not s: return None
+    m = re.search(r"(\d{1,2})\s+([A-Za-zçÇ]{3})[a-z.]*\s+(\d{4})\s+(\d\d):(\d\d)(?::(\d\d))?", s)
+    if not m: return None
+    mo = PTM.get(m.group(2).lower()) or ENM.get(m.group(2).lower())
+    if not mo: return None
+    return datetime(int(m.group(3)), mo, int(m.group(1)), int(m.group(4)), int(m.group(5)), int(m.group(6) or 0), tzinfo=timezone.utc).isoformat()
+def get(url, t=8):
+    k = "G:" + url; c = CACHE.get(k)
+    if c and time.time() - c[0] < 300: return c[1]
+    with urlopen(Request(url, headers={"User-Agent": UA, "Accept-Language": "pt-BR,pt;q=0.9"}), timeout=t) as r: b = r.read().decode("utf-8", "replace")
+    CACHE[k] = (time.time(), b); return b
+def rss_items(xml):
+    out = []
+    for it in ET.fromstring(xml).iter("item"):
+        g = lambda n: (it.findtext(n) or "").strip()
+        src = it.find("source")
+        desc = re.sub("<[^>]+>", " ", HT.unescape(g("description")))
+        out.append({"title": g("title"), "url": g("link"), "content": re.sub(r"\s+", " ", desc).strip(),
+                    "publishedDate": rssdate(g("pubDate")), "source": src.text if src is not None else None})
+    return out
+def days(d): return int((d - datetime(1970,1,1,tzinfo=timezone.utc)).days)
+def bing_web(q, rng, lo, hi, page):
+    f = {"day":'ex1:"ez1"',"hour":'ex1:"ez1"',"week":'ex1:"ez2"',"month":'ex1:"ez3"'}.get(rng)
+    now = datetime.now(timezone.utc)
+    if rng == "year": f = 'ex1:"ez5_%d_%d"' % (days(now - timedelta(days=365)), days(now))
+    if rng == "custom": f = 'ex1:"ez5_%d_%d"' % (days(lo or now - timedelta(days=3650)), days((hi or now + timedelta(days=1)) - timedelta(days=1)))
+    p = {"format": "rss", "q": q, "setlang": "pt-BR", "cc": "BR", "first": (page-1)*10+1}
+    if f: p["filters"] = f
+    rs = rss_items(get("https://www.bing.com/search?" + urlencode(p)))
+    for r in rs: r["engine"] = "bing"
+    return rs
+def bing_news(q, rng, page):
+    p = {"q": q, "format": "rss", "setlang": "pt-BR", "cc": "BR", "first": (page-1)*10+1}
+    iv = {"hour":"4","day":"7","week":"8","month":"9"}.get(rng)
+    if iv: p["qft"] = 'interval="%s"' % iv
+    rs = rss_items(get("https://www.bing.com/news/search?" + urlencode(p)))
+    for r in rs: r["engine"] = "bing news"
+    return rs
+def gnews(q, rng, lo, hi, page):
+    w = {"hour":" when:1h","day":" when:1d","week":" when:7d","month":" when:30d","year":" when:365d"}.get(rng, "")
+    if rng == "custom":
+        if lo: w += " after:" + lo.date().isoformat()
+        if hi: w += " before:" + hi.date().isoformat()
+    rs = rss_items(get("https://news.google.com/rss/search?" + urlencode({"q": q + w, "hl": "pt-BR", "gl": "BR", "ceid": "BR:pt-419"})))
+    rs = rs[(page-1)*20: page*20]
+    for r in rs:
+        r["engine"] = "google news"
+        if r["source"] and r["title"].endswith(" - " + r["source"]): r["title"] = r["title"][: -len(r["source"]) - 3]
+    return rs
+def bing_images(q, rng, lo, page):
+    now = datetime.now(timezone.utc)
+    mins = {"hour":60,"day":1440,"week":10080,"month":43200,"year":525600}.get(rng)
+    if rng == "custom" and lo: mins = max(60, int((now - lo).total_seconds() // 60))
+    p = {"q": q, "first": (page-1)*35, "count": 35, "setlang": "pt-BR", "cc": "BR", "safeSearch": "Off"}
+    if mins: p["qft"] = "+filterui:age-lt%d" % mins
+    h = get("https://www.bing.com/images/async?" + urlencode(p))
+    out = []
+    for m in re.finditer(r'\bm="([^"]+)"', h):
+        try: j = json.loads(HT.unescape(m.group(1)))
+        except Exception: continue
+        if not j.get("murl"): continue
+        out.append({"title": j.get("t") or "", "url": j.get("purl") or j.get("murl"), "img_src": j["murl"],
+                    "thumbnail_src": j.get("turl"), "engine": "bing images", "content": j.get("desc") or ""})
+    return out
+POOL = ThreadPoolExecutor(16)
+def extra(tab, q, rng, lo, hi, page):
+    if tab == "images": fs = [lambda: bing_images(q, rng, lo, page)]
+    elif tab == "news": fs = [lambda: gnews(q, rng, lo, hi, page), lambda: bing_news(q, rng, page)]
+    elif tab == "all": fs = [lambda: bing_web(q, rng, lo, hi, page)] + ([lambda: gnews(q, rng, lo, hi, page)] if rng in ("hour","day") else [])
+    else: fs = []
+    futs = [POOL.submit(f) for f in fs]; out = []
+    for f in futs:
+        try: out += f.result(timeout=10)
+        except Exception as e: print("provider error", e, flush=True)
+    return out
+
 def search(a):
     q = (a.get("q") or "").strip()
     tab = a.get("tab","all"); cat = CATS.get(tab,"general")
@@ -71,15 +155,22 @@ def search(a):
             qq += " before:" + (hi.date().isoformat())
         span = now - (lo or now - timedelta(days=3650))
         tr = "day" if span <= timedelta(days=1) and not hi else "week" if span <= timedelta(days=7) and not hi else "month" if span <= timedelta(days=31) and not hi else "year" if span <= timedelta(days=366) and not hi else None
-    d = sx(qq, cat, tr, page, lang, a.get("engines"))
-    if not d.get("results") and qq != q:
-        d = sx(q, cat, tr, page, lang)  # fallback without operators
+    fx = POOL.submit(extra, tab, q, rng, lo, hi, page)
+    try:
+        d = sx(qq, cat, tr, page, lang, a.get("engines"))
+        if not d.get("results") and qq != q: d = sx(q, cat, tr, page, lang)
+    except Exception as e:
+        print("searxng error", e, flush=True); d = {"results": [], "unresponsive_engines": [["searxng", str(e)]]}
+    ex = fx.result()
+    # interleave: extra providers first (dated & filtered), then searxng
+    d["results"] = ex + d.get("results", [])
     out, seen, ads = [], set(), 0
     for r in d.get("results", []):
         if is_ad(r): ads += 1; continue
         url = unwrap(r.get("url") or "")
-        if not url.startswith("http") or url in seen: continue
-        seen.add(url)
+        tk = re.sub(r"\W+", "", (r.get("title") or "").lower())[:60]
+        if not url.startswith("http") or url in seen or (tk and tab != "images" and tk in seen): continue
+        seen.add(url); seen.add(tk)
         pd = pdate(r.get("publishedDate"))
         if pd and ((lo and pd < lo) or (hi and pd >= hi)): continue
         if not pd and rng == "hour" and cat != "images": continue
